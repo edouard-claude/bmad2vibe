@@ -1,5 +1,7 @@
 # bmad2vibe
 
+I use [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD) daily — it's a remarkable framework for structured AI-assisted development. [Mistral Vibe](https://mistral.ai/products/vibe) has real potential to support this kind of agent-driven workflow, so I built this tool to bridge the two.
+
 Converts **BMAD Method** agents, workflows, commands and tasks into **Mistral Vibe** format.
 
 ## BMAD → Vibe Mapping
