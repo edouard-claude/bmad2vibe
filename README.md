@@ -1,25 +1,25 @@
 # bmad2vibe
 
-Convertit les agents, workflows, commandes et tasks **BMAD Method** en format **Mistral Vibe**.
+Converts **BMAD Method** agents, workflows, commands and tasks into **Mistral Vibe** format.
 
-## Mapping BMAD → Vibe
+## BMAD → Vibe Mapping
 
-| Artefact BMAD | Concept Vibe | Fichiers générés |
+| BMAD Artifact | Vibe Concept | Generated Files |
 |---|---|---|
-| **Agent** (persona XML, ~5-25k lignes) | Agent + Prompt | `agents/*.toml` + `prompts/*.md` |
+| **Agent** (persona XML, ~5-25k lines) | Agent + Prompt | `agents/*.toml` + `prompts/*.md` |
 | **Command** (stub `/bmad-bmm-create-prd`) | Workflow shortcut agent | `agents/*.toml` + `prompts/*.md` |
-| **Workflow** (multi-step process) | Skill | `skills/*/SKILL.md` (steps + data inlinés) |
-| **Task/Tool** (`shard-doc`, `help`) | Skill | `skills/bmad-*-task-*/SKILL.md` |
+| **Workflow** (multi-step process, `.md` or `.yaml`) | Skill | `skills/*/SKILL.md` (steps + data inlined) |
+| **Task/Tool** (`.md` or `.xml`) | Skill | `skills/bmad-*-task-*/SKILL.md` |
 
 ## Pipeline (7 phases)
 
-1. **Agents** — XML bundles → TOML (meta) + MD (system prompt complet)
-2. **Workflows** → Skills avec steps, templates et data inlinés
-3. **Tasks/Tools** → Skills user-invocable
-4. **Workflow shortcuts** — agents légers pour invocation directe (`vibe --agent bmad-bmm-create-prd`)
-5. **Data** — docs, CSV, templates copiés dans `skills/bmad-*-data/`
-6. **AGENTS.md** — fichier de découverte pour la racine du projet
-7. **Validation** — cross-ref TOML↔prompt, champs requis, safety, orphelins, skills
+1. **Agents** — XML bundles → TOML (metadata) + MD (full system prompt)
+2. **Workflows** → Skills with inlined steps, templates and data
+3. **Tasks/Tools** → User-invocable skills
+4. **Workflow shortcuts** — lightweight agents for direct invocation (`vibe --agent bmad-bmm-create-prd`)
+5. **Data** — docs, CSV, templates copied to `skills/bmad-*-data/`
+6. **AGENTS.md** — discovery index for the project root
+7. **Validation** — cross-ref TOML↔prompt, required fields, safety, orphans, skills
 
 ## Installation
 
@@ -30,71 +30,72 @@ go build -o bmad2vibe .
 ## Usage
 
 ```bash
-# Conversion complète (clone depuis GitHub)
+# Full conversion (clones from GitHub)
 ./bmad2vibe
 
-# Modules spécifiques
+# Specific modules only
 ./bmad2vibe -modules bmm,cis
 
-# Dry run
+# Dry run with verbose output
 ./bmad2vibe -dry-run -verbose
 
-# Sources locales
+# Local source directories
 ./bmad2vibe -bundles-dir ~/src/bmad-bundles -method-dir ~/src/BMAD-METHOD
 ```
 
-## Structure générée
+Default modules: `bmm,cis,bmgd,core`.
+
+## Generated Structure
 
 ```
 ~/.vibe/
-├── AGENTS.md                              # Copier à la racine du projet
+├── AGENTS.md                              # Copy to project root
 ├── agents/
-│   ├── bmad-bmm-quick-flow-solo-dev.toml  # Agent persona (Barry)
-│   ├── bmad-bmm-pm.toml                   # Agent persona (John)
-│   ├── bmad-bmm-architect.toml            # Agent persona (Winston)
-│   ├── bmad-bmm-dev.toml                  # Agent persona (Amelia)
-│   ├── bmad-bmm-quick-flow-quick-spec.toml # Workflow shortcut
-│   ├── bmad-bmm-create-prd.toml           # Workflow shortcut
+│   ├── bmad-bmm-quick-flow-solo-dev.toml  # Persona agent (Barry)
+│   ├── bmad-bmm-pm.toml                   # Persona agent (John)
+│   ├── bmad-bmm-architect.toml            # Persona agent (Winston)
+│   ├── bmad-bmm-4-implementation-dev-story.toml # Workflow shortcut
+│   ├── bmad-core-brainstorming.toml       # Core workflow shortcut
 │   └── ...
 ├── prompts/
-│   ├── bmad-bmm-quick-flow-solo-dev.md    # System prompt complet (XML BMAD)
+│   ├── bmad-bmm-quick-flow-solo-dev.md    # Full system prompt (BMAD XML)
 │   ├── bmad-bmm-pm.md
 │   └── ...
 └── skills/
-    ├── bmad-bmm-quick-flow-quick-spec/SKILL.md  # Workflow + steps inlinés
-    ├── bmad-bmm-quick-flow-quick-dev/SKILL.md
-    ├── bmad-bmm-task-shard-doc/SKILL.md          # Task standalone
+    ├── bmad-bmm-quick-flow-quick-spec/SKILL.md  # Workflow + inlined steps
+    ├── bmad-bmm-4-implementation-dev-story/SKILL.md
+    ├── bmad-core-task-shard-doc/SKILL.md         # Standalone task
     ├── bmad-bmm-data/                            # CSV, templates
     └── bmad-bmm-docs/                            # Documentation
 ```
 
-## Utilisation dans Vibe
+## Using with Vibe
 
 ```bash
-# Agent persona (avec menu interactif)
+# Persona agent (with interactive menu)
 vibe --agent bmad-bmm-quick-flow-solo-dev
 
-# Workflow direct (sans persona)
+# Direct workflow (no persona)
 vibe --agent bmad-bmm-quick-flow-quick-spec
 
-# Sélection interactive
-vibe    # puis Shift+Tab
+# Interactive selection
+vibe    # then Shift+Tab
 ```
 
 ## Validations
 
 | Check | Description |
 |---|---|
-| TOML → Prompt | `system_prompt_id` pointe vers un `.md` existant |
-| Champs requis | `display_name`, `description`, `safety`, `enabled_tools` |
-| Safety | Parmi `safe`, `neutral`, `destructive`, `yolo` |
-| Taille prompt | Alerte si < 50 bytes |
-| Orphelins | Prompts sans TOML correspondant |
-| Skills | Chaque dir skill a un `SKILL.md` |
-| Workflow shortcuts | Le skill référencé existe |
+| TOML → Prompt | `system_prompt_id` points to an existing `.md` |
+| Required fields | `display_name`, `description`, `safety`, `enabled_tools` |
+| Safety | Must be `safe`, `neutral`, `destructive`, or `yolo` |
+| Prompt size | Warning if < 50 bytes |
+| Orphans | Prompts without a matching TOML |
+| Skills | Each skill directory has a `SKILL.md` |
+| Workflow shortcuts | Referenced skill exists |
 
-## Pré-requis
+## Prerequisites
 
 - Go 1.24+
-- `git` (pour cloner les repos BMAD)
-- Mistral Vibe installé
+- `git` (to clone BMAD repos)
+- Mistral Vibe installed

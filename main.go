@@ -99,7 +99,7 @@ type agentMeta struct {
 func main() {
 	var (
 		vibeHome   = flag.String("vibe-home", "", "Vibe home directory (default ~/.vibe)")
-		modules    = flag.String("modules", "bmm,cis,bmgd", "Comma-separated modules to convert")
+		modules    = flag.String("modules", "bmm,cis,bmgd,core", "Comma-separated modules to convert")
 		dryRun     = flag.Bool("dry-run", false, "Show what would be done without writing files")
 		verbose    = flag.Bool("verbose", false, "Verbose output")
 		cleanup    = flag.Bool("cleanup", true, "Remove temp cloned repos after conversion")
@@ -352,7 +352,7 @@ func buildAgentPrompt(module, slug string, meta agentMeta, rawXML string) string
 // --- Phase 2: Workflow → skill conversion ---
 
 func convertWorkflows(cfg *config, module, methodDir string, report *conversionReport) {
-	workflowsDir := filepath.Join(methodDir, "src", "modules", module, "workflows")
+	workflowsDir := filepath.Join(methodDir, "src", module, "workflows")
 	if !dirExists(workflowsDir) {
 		report.warn(fmt.Sprintf("no workflows dir for module %q", module))
 		return
@@ -363,7 +363,8 @@ func convertWorkflows(cfg *config, module, methodDir string, report *conversionR
 			return nil
 		}
 		name := info.Name()
-		if !strings.HasPrefix(name, "workflow") || !strings.HasSuffix(name, ".md") {
+		ext := filepath.Ext(name)
+		if !strings.HasPrefix(name, "workflow") || (ext != ".md" && ext != ".yaml") {
 			return nil
 		}
 
@@ -376,9 +377,11 @@ func convertWorkflows(cfg *config, module, methodDir string, report *conversionR
 			return nil
 		}
 
-		steps := collectFiles(filepath.Join(filepath.Dir(path), "steps"), ".md")
+		steps := collectStepDirs(filepath.Dir(path))
 		data := collectFiles(filepath.Join(filepath.Dir(path), "data"), "")
 		templates := collectNamedFiles(filepath.Dir(path), "template", "tmpl")
+		templatesDir := collectFiles(filepath.Join(filepath.Dir(path), "templates"), "")
+		templates = append(templates, templatesDir...)
 
 		skill := buildWorkflowSkill(module, skillSlug, string(content), steps, data, templates)
 		skillDir := filepath.Join(cfg.vibeHome, "skills", skillSlug)
@@ -453,17 +456,18 @@ func buildWorkflowSkill(module, slug, content string, steps, data, templates []n
 // --- Phase 3: Task/tool → skill ---
 
 func convertTasks(cfg *config, module, methodDir string, report *conversionReport) {
-	tasksDir := filepath.Join(methodDir, "src", "modules", module, "tasks")
+	tasksDir := filepath.Join(methodDir, "src", module, "tasks")
 	if !dirExists(tasksDir) {
 		return
 	}
 
 	entries, _ := os.ReadDir(tasksDir)
 	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
+		ext := filepath.Ext(e.Name())
+		if e.IsDir() || (ext != ".md" && ext != ".xml") {
 			continue
 		}
-		slug := strings.TrimSuffix(e.Name(), ".md")
+		slug := strings.TrimSuffix(e.Name(), ext)
 		skillSlug := fmt.Sprintf("bmad-%s-task-%s", module, slug)
 
 		content, err := os.ReadFile(filepath.Join(tasksDir, e.Name()))
@@ -503,7 +507,7 @@ func convertTasks(cfg *config, module, methodDir string, report *conversionRepor
 // Lightweight agents for direct workflow invocation: `vibe --agent bmad-bmm-create-prd`
 
 func generateWorkflowAgents(cfg *config, module, methodDir string, report *conversionReport) {
-	workflowsDir := filepath.Join(methodDir, "src", "modules", module, "workflows")
+	workflowsDir := filepath.Join(methodDir, "src", module, "workflows")
 	if !dirExists(workflowsDir) {
 		return
 	}
@@ -513,7 +517,8 @@ func generateWorkflowAgents(cfg *config, module, methodDir string, report *conve
 			return nil
 		}
 		name := info.Name()
-		if !strings.HasPrefix(name, "workflow") || !strings.HasSuffix(name, ".md") {
+		ext := filepath.Ext(name)
+		if !strings.HasPrefix(name, "workflow") || (ext != ".md" && ext != ".yaml") {
 			return nil
 		}
 
@@ -574,7 +579,7 @@ func generateWorkflowAgents(cfg *config, module, methodDir string, report *conve
 
 func copyModuleData(cfg *config, module, methodDir string, report *conversionReport) {
 	for _, sub := range []string{"data", "docs"} {
-		src := filepath.Join(methodDir, "src", "modules", module, sub)
+		src := filepath.Join(methodDir, "src", module, sub)
 		if !dirExists(src) {
 			continue
 		}
@@ -863,7 +868,8 @@ func buildSkillSlug(module, rel, name string) string {
 		}
 	}
 	if strings.HasPrefix(name, "workflow-") {
-		suffix := strings.TrimSuffix(strings.TrimPrefix(name, "workflow-"), ".md")
+		suffix := strings.TrimPrefix(name, "workflow-")
+		suffix = strings.TrimSuffix(suffix, filepath.Ext(suffix))
 		slug += "-" + suffix
 	}
 	return slug
@@ -902,6 +908,35 @@ func collectFiles(dir, extFilter string) []namedContent {
 			continue
 		}
 		result = append(result, namedContent{name: e.Name(), content: string(data)})
+	}
+	return result
+}
+
+// collectStepDirs collects .md files from all subdirectories whose name contains "step".
+func collectStepDirs(dir string) []namedContent {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var result []namedContent
+	for _, e := range entries {
+		if !e.IsDir() || !strings.Contains(strings.ToLower(e.Name()), "step") {
+			continue
+		}
+		subEntries, err := os.ReadDir(filepath.Join(dir, e.Name()))
+		if err != nil {
+			continue
+		}
+		for _, se := range subEntries {
+			if se.IsDir() || !strings.HasSuffix(se.Name(), ".md") {
+				continue
+			}
+			data, err := os.ReadFile(filepath.Join(dir, e.Name(), se.Name()))
+			if err != nil {
+				continue
+			}
+			result = append(result, namedContent{name: se.Name(), content: string(data)})
+		}
 	}
 	return result
 }
