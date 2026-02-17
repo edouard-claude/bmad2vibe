@@ -49,3 +49,11 @@ Single-file CLI (`main.go`, ~1000 lines) that converts **BMAD Method** artifacts
 
 - `bmad-bundles` — XML agent personas per module
 - `BMAD-METHOD` — workflows, tasks, data, docs organized under `src/<module>/`
+
+## Conventions
+
+- All code, comments, log messages, and documentation must be in **English (US)**
+- Always verify changes with `go build -o bmad2vibe . && ./bmad2vibe -dry-run -verbose` after edits
+- BMAD-METHOD repo structure is `src/<module>/` (NOT `src/modules/<module>/`)
+- Modules span two repos: some only exist in bmad-bundles (agents), some only in BMAD-METHOD (workflows/tasks)
+- `utility` module in BMAD-METHOD is internal build components — excluded from conversion
