@@ -32,8 +32,8 @@ Single-file CLI (`main.go`, ~1000 lines) that converts **BMAD Method** artifacts
 ### Conversion pipeline (7 sequential phases)
 
 1. **Agents** — Reads XML bundles from `bmad-bundles/<module>/agents/*.xml`, extracts metadata via regex on the XML opening tag, produces a `.toml` agent config + `.md` system prompt (embeds the full XML verbatim).
-2. **Workflows** — Walks `BMAD-METHOD/src/modules/<module>/workflows/`, inlines step files, templates and data into a single `SKILL.md` with YAML frontmatter.
-3. **Tasks** — Reads `tasks/*.md`, wraps each in a skill with YAML frontmatter.
+2. **Workflows** — Walks `BMAD-METHOD/src/<module>/workflows/`, inlines step files (from any `*step*` subdirs), templates and data into a single `SKILL.md` with YAML frontmatter. Accepts `.md` and `.yaml` workflow files.
+3. **Tasks** — Reads `tasks/*.md` and `tasks/*.xml`, wraps each in a skill with YAML frontmatter.
 4. **Workflow shortcuts** — Generates lightweight agent TOML + prompt pairs that point to a skill. Skips if a persona agent already exists for that slug (avoids overwriting Phase 1 output).
 5. **Data** — Copies `data/` and `docs/` directories as-is into skills.
 6. **AGENTS.md** — Generates a discovery index by reading all produced TOML files.
@@ -43,9 +43,9 @@ Single-file CLI (`main.go`, ~1000 lines) that converts **BMAD Method** artifacts
 
 - **Safety levels** (`safe`, `neutral`, `destructive`) are hardcoded in `agentSafetyMap` per agent slug. Each level maps to a set of allowed tools in `safetyToolsMap`.
 - **Slug convention**: all output artifacts are prefixed `bmad-<module>-` (e.g. `bmad-bmm-architect`).
-- **Modules**: default set is `bmm,cis,bmgd` — each is a subdirectory in both source repos.
+- **Modules**: auto-discovered from both source repos (union of dirs with agents, workflows, or tasks). Override with `-modules`. Currently discovers `bmgd,bmm,cis,core`.
 
 ### Source repos (cloned at runtime)
 
 - `bmad-bundles` — XML agent personas per module
-- `BMAD-METHOD` — workflows, tasks, data, docs organized under `src/modules/<module>/`
+- `BMAD-METHOD` — workflows, tasks, data, docs organized under `src/<module>/`

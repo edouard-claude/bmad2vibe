@@ -43,7 +43,7 @@ go build -o bmad2vibe .
 ./bmad2vibe -bundles-dir ~/src/bmad-bundles -method-dir ~/src/BMAD-METHOD
 ```
 
-Default modules: `bmm,cis,bmgd,core`.
+Modules are auto-discovered from both source repos. Use `-modules` to override.
 
 ## Generated Structure
 

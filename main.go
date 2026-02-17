@@ -99,7 +99,7 @@ type agentMeta struct {
 func main() {
 	var (
 		vibeHome   = flag.String("vibe-home", "", "Vibe home directory (default ~/.vibe)")
-		modules    = flag.String("modules", "bmm,cis,bmgd,core", "Comma-separated modules to convert")
+		modules    = flag.String("modules", "", "Comma-separated modules to convert (auto-discovered if empty)")
 		dryRun     = flag.Bool("dry-run", false, "Show what would be done without writing files")
 		verbose    = flag.Bool("verbose", false, "Verbose output")
 		cleanup    = flag.Bool("cleanup", true, "Remove temp cloned repos after conversion")
@@ -128,7 +128,6 @@ func main() {
 
 	cfg := &config{
 		vibeHome: *vibeHome,
-		modules:  splitTrim(*modules, ","),
 		dryRun:   *dryRun,
 		verbose:  *verbose,
 		cleanup:  *cleanup,
@@ -139,16 +138,23 @@ func main() {
 
 	fmt.Println("🚀 bmad2vibe — BMAD Method → Mistral Vibe converter")
 	fmt.Printf("   Target: %s\n", cfg.vibeHome)
-	fmt.Printf("   Modules: %v\n", cfg.modules)
 	if cfg.dryRun {
 		fmt.Println("   ⚠️  DRY RUN — no files will be written")
 	}
-	fmt.Println()
 
 	// Step 1: Get sources
 	bDir, mDir := resolveSources(cfg, *bundlesDir, *methodDir)
 
-	// Step 2: Create target dirs
+	// Step 2: Resolve modules
+	if *modules != "" {
+		cfg.modules = splitTrim(*modules, ",")
+	} else {
+		cfg.modules = discoverModules(bDir, mDir)
+	}
+	fmt.Printf("   Modules: %v\n", cfg.modules)
+	fmt.Println()
+
+	// Step 3: Create target dirs
 	ensureDirs(cfg, "agents", "prompts", "skills")
 
 	// Phase 1: Agents (bundles XML → TOML + prompt)
@@ -231,6 +237,44 @@ func cloneRepo(url, dest string, verbose bool) error {
 	return cmd.Run()
 }
 
+// discoverModules scans both source repos and returns the union of module names
+// that contain convertible content (agents, workflows, or tasks).
+// The "utility" directory is excluded as it only contains internal build components.
+func discoverModules(bundlesDir, methodDir string) []string {
+	seen := make(map[string]bool)
+	skip := map[string]bool{"utility": true}
+
+	// Modules with agents in bmad-bundles
+	if entries, err := os.ReadDir(bundlesDir); err == nil {
+		for _, e := range entries {
+			if e.IsDir() && !skip[e.Name()] && dirExists(filepath.Join(bundlesDir, e.Name(), "agents")) {
+				seen[e.Name()] = true
+			}
+		}
+	}
+
+	// Modules with workflows or tasks in BMAD-METHOD/src/
+	srcDir := filepath.Join(methodDir, "src")
+	if entries, err := os.ReadDir(srcDir); err == nil {
+		for _, e := range entries {
+			if !e.IsDir() || skip[e.Name()] {
+				continue
+			}
+			mod := e.Name()
+			if dirExists(filepath.Join(srcDir, mod, "workflows")) || dirExists(filepath.Join(srcDir, mod, "tasks")) {
+				seen[mod] = true
+			}
+		}
+	}
+
+	var modules []string
+	for m := range seen {
+		modules = append(modules, m)
+	}
+	sort.Strings(modules)
+	return modules
+}
+
 func ensureDirs(cfg *config, subdirs ...string) {
 	if cfg.dryRun {
 		return
@@ -246,7 +290,9 @@ func convertAgents(cfg *config, module, bundlesDir string, report *conversionRep
 	agentsDir := filepath.Join(bundlesDir, module, "agents")
 	entries, err := os.ReadDir(agentsDir)
 	if err != nil {
-		report.warn(fmt.Sprintf("no agents dir for module %q in bundles", module))
+		if cfg.verbose {
+			fmt.Printf("   (no agents dir for module %q in bundles — skipping)\n", module)
+		}
 		return
 	}
 
@@ -354,7 +400,9 @@ func buildAgentPrompt(module, slug string, meta agentMeta, rawXML string) string
 func convertWorkflows(cfg *config, module, methodDir string, report *conversionReport) {
 	workflowsDir := filepath.Join(methodDir, "src", module, "workflows")
 	if !dirExists(workflowsDir) {
-		report.warn(fmt.Sprintf("no workflows dir for module %q", module))
+		if cfg.verbose {
+			fmt.Printf("   (no workflows dir for module %q — skipping)\n", module)
+		}
 		return
 	}
 
