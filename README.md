@@ -1,10 +1,9 @@
 # bmad2vibe
 
 [![CI](https://github.com/edouard-claude/bmad2vibe/actions/workflows/ci.yml/badge.svg)](https://github.com/edouard-claude/bmad2vibe/actions/workflows/ci.yml)
-[![Release](https://github.com/edouard-claude/bmad2vibe/actions/workflows/release.yml/badge.svg)](https://github.com/edouard-claude/bmad2vibe/actions/workflows/release.yml)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/edouard-claude/bmad2vibe)](https://go.dev/)
+[![GitHub release](https://img.shields.io/github/v/release/edouard-claude/bmad2vibe?include_prereleases)](https://github.com/edouard-claude/bmad2vibe/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![GitHub release](https://img.shields.io/github/v/release/edouard-claude/bmad2vibe)](https://github.com/edouard-claude/bmad2vibe/releases/latest)
 
 I use [BMAD Method](https://github.com/bmad-code-org/BMAD-METHOD) daily — it's a remarkable framework for structured AI-assisted development. [Mistral Vibe](https://mistral.ai/products/vibe) has real potential to support this kind of agent-driven workflow, so I built this tool to bridge the two.
 
